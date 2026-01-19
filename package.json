@@ -99,6 +99,10 @@
         "command": "antigravity.loginGitHub",
         "title": "Sign in to GitHub",
         "icon": "$(sign-in)"
+      },
+      {
+        "command": "antigravity.showDetails",
+        "title": "View Details"
       }
     ],
     "menus": {

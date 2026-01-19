@@ -258,5 +258,12 @@ function registerCommands(context, localProvider, githubProvider, communityProvi
             communityProvider.refresh();
         }
     }));
+    // Show skill details
+    context.subscriptions.push(vscode.commands.registerCommand('antigravity.showDetails', async (item) => {
+        if (item?.skill) {
+            const { SkillDetailsPanel } = await Promise.resolve().then(() => __importStar(require('./webview/skillDetails')));
+            SkillDetailsPanel.createOrShow(context.extensionUri, item.skill, localProvider.getSkillsDirectory());
+        }
+    }));
 }
 //# sourceMappingURL=commands.js.map

@@ -272,4 +272,18 @@ export function registerCommands(
             }
         })
     );
+
+    // Show skill details
+    context.subscriptions.push(
+        vscode.commands.registerCommand('antigravity.showDetails', async (item: any) => {
+            if (item?.skill) {
+                const { SkillDetailsPanel } = await import('./webview/skillDetails');
+                SkillDetailsPanel.createOrShow(
+                    context.extensionUri,
+                    item.skill,
+                    localProvider.getSkillsDirectory()
+                );
+            }
+        })
+    );
 }

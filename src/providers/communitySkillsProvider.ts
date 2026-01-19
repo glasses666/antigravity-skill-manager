@@ -21,6 +21,13 @@ export class CommunitySkillItem extends vscode.TreeItem {
                 ? new vscode.ThemeIcon('verified-filled')
                 : new vscode.ThemeIcon('package');
             this.description = this.buildDescription(skill);
+
+            // Click to open details
+            this.command = {
+                command: 'antigravity.showDetails',
+                title: 'View Details',
+                arguments: [this]
+            };
         } else if (isMessage) {
             this.iconPath = new vscode.ThemeIcon('info');
         }
