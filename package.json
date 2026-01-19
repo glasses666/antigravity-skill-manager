@@ -45,9 +45,10 @@
           "icon": "$(github)"
         },
         {
-          "id": "communitySkills",
-          "name": "Community Skills",
-          "icon": "$(star)"
+          "type": "webview",
+          "id": "skillsMarketplace",
+          "name": "Skill Store",
+          "icon": "$(extensions)"
         }
       ]
     },

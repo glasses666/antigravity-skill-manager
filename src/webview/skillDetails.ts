@@ -108,16 +108,32 @@ export class SkillDetailsPanel {
     private async _update(skill: CommunitySkill) {
         this._panel.title = skill.name;
 
-        // Get README content
+        // Get README content - try multiple file names
         let readmeContent = '';
-        try {
-            const match = skill.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-            if (match) {
-                const [, owner, repo] = match;
-                readmeContent = await this._githubService.getRawContent(owner, repo.replace('.git', ''), 'README.md');
+        const match = skill.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+
+        if (match) {
+            const [, owner, repo] = match;
+            const repoName = repo.replace('.git', '');
+
+            // Try different README file names
+            const readmeFiles = ['README.md', 'readme.md', 'Readme.md', 'README.MD', 'SKILL.md'];
+
+            for (const filename of readmeFiles) {
+                try {
+                    readmeContent = await this._githubService.getRawContent(owner, repoName, filename);
+                    if (readmeContent && readmeContent.trim().length > 0) {
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
             }
-        } catch {
-            readmeContent = skill.description || 'No README available.';
+        }
+
+        // If no README found, show a friendly message
+        if (!readmeContent || readmeContent.trim().length === 0) {
+            readmeContent = `# ${skill.name}\n\n${skill.description || 'No description available.'}\n\n---\n\n*No README file found in this repository. Click "View on GitHub" to see more details.*`;
         }
 
         this._panel.webview.html = this._getHtml(skill, readmeContent);

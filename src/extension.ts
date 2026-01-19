@@ -1,16 +1,25 @@
 import * as vscode from 'vscode';
+import * as os from 'os';
+import * as path from 'path';
 import { LocalSkillsProvider } from './providers/localSkillsProvider';
 import { GitHubSkillsProvider } from './providers/githubSkillsProvider';
 import { CommunitySkillsProvider } from './providers/communitySkillsProvider';
+import { SkillsMarketplace } from './webview/skillsMarketplace';
 import { registerCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Antigravity Skill Manager is now active!');
 
+    // Get skills path
+    const config = vscode.workspace.getConfiguration('antigravity');
+    const customPath = config.get<string>('skillsPath');
+    const skillsPath = customPath || path.join(os.homedir(), '.gemini', 'antigravity', 'skills');
+
     // Create providers
     const localProvider = new LocalSkillsProvider();
     const githubProvider = new GitHubSkillsProvider();
     const communityProvider = new CommunitySkillsProvider();
+    const marketplaceProvider = new SkillsMarketplace(context.extensionUri, skillsPath);
 
     // Register tree views
     const localTreeView = vscode.window.createTreeView('localSkills', {
@@ -23,10 +32,10 @@ export function activate(context: vscode.ExtensionContext) {
         showCollapseAll: true
     });
 
-    const communityTreeView = vscode.window.createTreeView('communitySkills', {
-        treeDataProvider: communityProvider,
-        showCollapseAll: true
-    });
+    // Register webview provider for marketplace
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider('skillsMarketplace', marketplaceProvider)
+    );
 
     // Register commands
     registerCommands(context, localProvider, githubProvider, communityProvider);
@@ -40,7 +49,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(localTreeView, githubTreeView, communityTreeView);
+    context.subscriptions.push(localTreeView, githubTreeView);
 }
 
 export function deactivate() { }

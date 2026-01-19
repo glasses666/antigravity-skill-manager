@@ -1,43 +1,62 @@
-import * as vscode from 'vscode';
-import { CommunitySkill, GitHubSkill } from '../types';
-import { GitHubService } from '../services/githubService';
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SkillsMarketplace = void 0;
+const vscode = __importStar(require("vscode"));
+const githubService_1 = require("../services/githubService");
 /**
  * Skills Marketplace - VS Code Extension Store style view
  */
-export class SkillsMarketplace implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'skillsMarketplace';
-
-    private _view?: vscode.WebviewView;
-    private _skills: CommunitySkill[] = [];
-    private _loading = false;
-    private _error: string | null = null;
-    private _githubService: GitHubService;
-    private _skillsPath: string;
-    private _extensionUri: vscode.Uri;
-
-    constructor(extensionUri: vscode.Uri, skillsPath: string) {
+class SkillsMarketplace {
+    constructor(extensionUri, skillsPath) {
+        this._skills = [];
+        this._loading = false;
+        this._error = null;
         this._extensionUri = extensionUri;
         this._skillsPath = skillsPath;
-        this._githubService = new GitHubService();
+        this._githubService = new githubService_1.GitHubService();
     }
-
-    public resolveWebviewView(
-        webviewView: vscode.WebviewView,
-        _context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken
-    ) {
+    resolveWebviewView(webviewView, _context, _token) {
         this._view = webviewView;
-
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri]
         };
-
         webviewView.webview.html = this._getHtml();
-
         // Handle messages
-        webviewView.webview.onDidReceiveMessage(async message => {
+        webviewView.webview.onDidReceiveMessage(async (message) => {
             switch (message.command) {
                 case 'install':
                     await this._installSkill(message.skill);
@@ -56,22 +75,17 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                     break;
             }
         });
-
         // Load skills
         this.refresh();
     }
-
-    public async refresh() {
+    async refresh() {
         this._loading = true;
         this._error = null;
         this._updateView();
-
         try {
             const repos = await this._githubService.discoverSkillRepos();
-
             // Filter repos that have README.md or SKILL.md
-            const validSkills: CommunitySkill[] = [];
-
+            const validSkills = [];
             for (const repo of repos) {
                 const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
                 if (hasReadme) {
@@ -86,29 +100,28 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                         verified: true,
                         category: this._inferCategory(repo.topics, repo.description),
                         owner: repo.owner?.login || ''
-                    } as CommunitySkill & { owner: string });
+                    });
                 }
             }
-
             this._skills = validSkills;
             this._error = null;
-        } catch (err) {
+        }
+        catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (msg.includes('403') || msg.includes('rate limit')) {
                 this._error = 'rate_limit';
-            } else {
+            }
+            else {
                 this._error = msg;
             }
             this._skills = [];
         }
-
         this._loading = false;
         this._updateView();
     }
-
-    private async _hasReadmeOrSkillMd(owner: string, repo: string): Promise<boolean> {
-        if (!owner || !repo) return false;
-
+    async _hasReadmeOrSkillMd(owner, repo) {
+        if (!owner || !repo)
+            return false;
         const files = ['README.md', 'readme.md', 'SKILL.md'];
         for (const file of files) {
             try {
@@ -116,25 +129,22 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 if (content && content.trim().length > 50) {
                     return true;
                 }
-            } catch {
+            }
+            catch {
                 continue;
             }
         }
         return false;
     }
-
-    private async _search(query: string) {
+    async _search(query) {
         if (!query.trim()) {
             await this.refresh();
             return;
         }
-
         this._loading = true;
         this._updateView();
-
         try {
             const repos = await this._githubService.searchSkillRepos(query);
-
             this._skills = repos.map(repo => ({
                 name: repo.name,
                 repoUrl: repo.html_url,
@@ -147,37 +157,32 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 category: this._inferCategory(repo.topics, repo.description),
                 owner: repo.owner?.login || ''
             }));
-
             this._error = null;
-        } catch (err) {
+        }
+        catch (err) {
             this._error = err instanceof Error ? err.message : String(err);
         }
-
         this._loading = false;
         this._updateView();
     }
-
-    private async _login() {
+    async _login() {
         const success = await this._githubService.login();
         if (success) {
             await this.refresh();
         }
     }
-
-    private async _installSkill(skill: CommunitySkill) {
-        const fs = await import('fs');
-        const path = await import('path');
-
+    async _installSkill(skill) {
+        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+        const path = await Promise.resolve().then(() => __importStar(require('path')));
         const destPath = path.join(this._skillsPath, skill.name);
-
         if (fs.existsSync(destPath)) {
             const overwrite = await vscode.window.showQuickPick(['Yes', 'No'], {
                 placeHolder: `Skill "${skill.name}" exists. Overwrite?`
             });
-            if (overwrite !== 'Yes') return;
+            if (overwrite !== 'Yes')
+                return;
             fs.rmSync(destPath, { recursive: true, force: true });
         }
-
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: `Installing ${skill.name}...`,
@@ -187,35 +192,37 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 await this._githubService.cloneSkill(skill.repoUrl, destPath);
                 vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
                 vscode.commands.executeCommand('antigravity.refreshSkills');
-            } catch (err) {
+            }
+            catch (err) {
                 vscode.window.showErrorMessage(`Failed: ${err}`);
             }
         });
     }
-
-    private async _showDetails(skill: CommunitySkill) {
-        const { SkillDetailsPanel } = await import('./skillDetails');
+    async _showDetails(skill) {
+        const { SkillDetailsPanel } = await Promise.resolve().then(() => __importStar(require('./skillDetails')));
         SkillDetailsPanel.createOrShow(this._extensionUri, skill, this._skillsPath);
     }
-
-    private _inferCategory(topics: string[], description: string | null): 'development' | 'testing' | 'security' | 'design' | 'document' | 'automation' | 'other' {
+    _inferCategory(topics, description) {
         const text = [...topics, description || ''].join(' ').toLowerCase();
-        if (text.includes('test') || text.includes('playwright')) return 'testing';
-        if (text.includes('security') || text.includes('audit')) return 'security';
-        if (text.includes('design') || text.includes('ui')) return 'design';
-        if (text.includes('doc') || text.includes('markdown')) return 'document';
-        if (text.includes('automation') || text.includes('workflow')) return 'automation';
+        if (text.includes('test') || text.includes('playwright'))
+            return 'testing';
+        if (text.includes('security') || text.includes('audit'))
+            return 'security';
+        if (text.includes('design') || text.includes('ui'))
+            return 'design';
+        if (text.includes('doc') || text.includes('markdown'))
+            return 'document';
+        if (text.includes('automation') || text.includes('workflow'))
+            return 'automation';
         return 'development';
     }
-
-    private _updateView() {
+    _updateView() {
         if (this._view) {
             this._view.webview.html = this._getHtml();
         }
     }
-
-    private _getHtml(): string {
-        const categoryIcons: Record<string, string> = {
+    _getHtml() {
+        const categoryIcons = {
             development: '💻',
             design: '🎨',
             security: '🔒',
@@ -224,7 +231,6 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
             automation: '⚙️',
             other: '📦'
         };
-
         const skillsHtml = this._skills.map(skill => `
             <div class="skill-item" onclick="showDetails(${JSON.stringify(skill).replace(/"/g, '&quot;')})">
                 <div class="skill-icon">${categoryIcons[skill.category || 'other'] || '📦'}</div>
@@ -234,12 +240,11 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                         <span class="skill-meta">⭐ ${this._formatNumber(skill.stars)}</span>
                     </div>
                     <div class="skill-desc">${this._truncate(skill.description, 80)}</div>
-                    <div class="skill-author">${(skill as any).owner || 'Unknown'}</div>
+                    <div class="skill-author">${skill.owner || 'Unknown'}</div>
                 </div>
                 <button class="install-btn" onclick="event.stopPropagation(); install(${JSON.stringify(skill).replace(/"/g, '&quot;')})">安装</button>
             </div>
         `).join('');
-
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -471,16 +476,18 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
 </body>
 </html>`;
     }
-
-    private _formatNumber(num: number): string {
+    _formatNumber(num) {
         if (num >= 1000) {
             return (num / 1000).toFixed(1) + 'K';
         }
         return num.toString();
     }
-
-    private _truncate(str: string, len: number): string {
-        if (str.length <= len) return str;
+    _truncate(str, len) {
+        if (str.length <= len)
+            return str;
         return str.substring(0, len) + '...';
     }
 }
+exports.SkillsMarketplace = SkillsMarketplace;
+SkillsMarketplace.viewType = 'skillsMarketplace';
+//# sourceMappingURL=skillsMarketplace.js.map

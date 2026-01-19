@@ -36,16 +36,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
+const os = __importStar(require("os"));
+const path = __importStar(require("path"));
 const localSkillsProvider_1 = require("./providers/localSkillsProvider");
 const githubSkillsProvider_1 = require("./providers/githubSkillsProvider");
 const communitySkillsProvider_1 = require("./providers/communitySkillsProvider");
+const skillsMarketplace_1 = require("./webview/skillsMarketplace");
 const commands_1 = require("./commands");
 function activate(context) {
     console.log('Antigravity Skill Manager is now active!');
+    // Get skills path
+    const config = vscode.workspace.getConfiguration('antigravity');
+    const customPath = config.get('skillsPath');
+    const skillsPath = customPath || path.join(os.homedir(), '.gemini', 'antigravity', 'skills');
     // Create providers
     const localProvider = new localSkillsProvider_1.LocalSkillsProvider();
     const githubProvider = new githubSkillsProvider_1.GitHubSkillsProvider();
     const communityProvider = new communitySkillsProvider_1.CommunitySkillsProvider();
+    const marketplaceProvider = new skillsMarketplace_1.SkillsMarketplace(context.extensionUri, skillsPath);
     // Register tree views
     const localTreeView = vscode.window.createTreeView('localSkills', {
         treeDataProvider: localProvider,
@@ -55,10 +63,8 @@ function activate(context) {
         treeDataProvider: githubProvider,
         showCollapseAll: true
     });
-    const communityTreeView = vscode.window.createTreeView('communitySkills', {
-        treeDataProvider: communityProvider,
-        showCollapseAll: true
-    });
+    // Register webview provider for marketplace
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider('skillsMarketplace', marketplaceProvider));
     // Register commands
     (0, commands_1.registerCommands)(context, localProvider, githubProvider, communityProvider);
     // Watch for configuration changes
@@ -67,7 +73,7 @@ function activate(context) {
             localProvider.refresh();
         }
     }));
-    context.subscriptions.push(localTreeView, githubTreeView, communityTreeView);
+    context.subscriptions.push(localTreeView, githubTreeView);
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

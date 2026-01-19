@@ -57,6 +57,24 @@ class GitHubSkillItem extends vscode.TreeItem {
                 ? new vscode.ThemeIcon('verified')
                 : new vscode.ThemeIcon('package');
             this.description = skill.stars !== undefined ? `⭐ ${skill.stars}` : '';
+            // Click to open details - convert to CommunitySkill format
+            this.command = {
+                command: 'antigravity.showDetails',
+                title: 'View Details',
+                arguments: [{
+                        skill: {
+                            name: skill.name,
+                            repoUrl: skill.url || `https://github.com/${skill.repoOwner}/${skill.repoName}`,
+                            description: skill.description || '',
+                            stars: skill.stars || 0,
+                            forks: 0,
+                            updatedAt: new Date().toISOString(),
+                            topics: [],
+                            verified: skill.verified || true,
+                            category: 'development'
+                        }
+                    }]
+            };
         }
     }
 }
