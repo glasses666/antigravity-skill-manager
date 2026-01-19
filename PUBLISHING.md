@@ -4,8 +4,13 @@
 
 ## 前置准备
 
-1.  **创建 Open VSX 账号**: 访问 [open-vsx.org](https://open-vsx.org/) 并使用 GitHub 登录。
+## 前置准备
+
+1.  **创建 Open VSX 账号**: 访问 [open-vsx.org](https://open-vsx.org/)。
+    - **注意**: 你必须签署 **Eclipse Publisher Agreement** 才能发布。通常建议使用 **GitHub 账号登录**，系统会引导你完成 Eclipse Foundation 账号的关联和协议签署。
+    - 如果遇到 "You must log in with an Eclipse Foundation account..." 错误，请确保你已经完成了 Eclipse 账号的注册并同意了相关条款。
 2.  **创建 Namespace**: 在 Settings 页面创建一个 Namespace（建议与 `package.json` 中的 `publisher` 字段一致，当前为 `Glasser`）。
+    - 遇到 "This namespace is not verified" 警告是正常的。**验证是可选的**，不影响你发布扩展。只有当你需要 "Verified" 徽章时才需要进行域名验证。
 3.  **获取 Token**: 在 Settings -> Access Tokens 中生成一个新的 Token。
 
 ## 发布步骤
