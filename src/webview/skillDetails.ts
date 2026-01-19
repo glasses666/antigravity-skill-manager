@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { marked } from 'marked';
 import { GitHubService } from '../services/githubService';
 import { CommunitySkill } from '../types';
 
@@ -111,17 +112,19 @@ export class SkillDetailsPanel {
         // Get README content - try multiple file names
         let readmeContent = '';
         const match = skill.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        let repoOwner = '';
+        let repoName = '';
 
         if (match) {
-            const [, owner, repo] = match;
-            const repoName = repo.replace('.git', '');
+            [, repoOwner, repoName] = match;
+            repoName = repoName.replace('.git', '');
 
             // Try different README file names
             const readmeFiles = ['README.md', 'readme.md', 'Readme.md', 'README.MD', 'SKILL.md'];
 
             for (const filename of readmeFiles) {
                 try {
-                    readmeContent = await this._githubService.getRawContent(owner, repoName, filename);
+                    readmeContent = await this._githubService.getRawContent(repoOwner, repoName, filename);
                     if (readmeContent && readmeContent.trim().length > 0) {
                         break;
                     }
@@ -136,12 +139,12 @@ export class SkillDetailsPanel {
             readmeContent = `# ${skill.name}\n\n${skill.description || 'No description available.'}\n\n---\n\n*No README file found in this repository. Click "View on GitHub" to see more details.*`;
         }
 
-        this._panel.webview.html = this._getHtml(skill, readmeContent);
+        this._panel.webview.html = this._getHtml(skill, readmeContent, repoOwner, repoName);
     }
 
-    private _getHtml(skill: CommunitySkill, readmeContent: string): string {
+    private _getHtml(skill: CommunitySkill, readmeContent: string, repoOwner: string, repoName: string): string {
         // Simple markdown to HTML conversion
-        const readmeHtml = this._markdownToHtml(readmeContent);
+        const readmeHtml = this._markdownToHtml(readmeContent, repoOwner, repoName);
         const categoryIcons: Record<string, string> = {
             development: '💻',
             design: '🎨',
@@ -389,44 +392,38 @@ export class SkillDetailsPanel {
 </html>`;
     }
 
-    private _markdownToHtml(md: string): string {
-        // Simple markdown to HTML conversion
-        let html = md
-            // Escape HTML
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            // Code blocks
-            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-            // Inline code
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            // Headers
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            // Bold
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            // Italic
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            // Links
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-            // Images
-            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
-            // Blockquotes
-            .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
-            // Unordered lists
-            .replace(/^\* (.*$)/gm, '<li>$1</li>')
-            .replace(/^- (.*$)/gm, '<li>$1</li>')
-            // Line breaks
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br>');
+    private _markdownToHtml(md: string, repoOwner: string, repoName: string): string {
+        const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
 
-        // Wrap lists
-        html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-        // Clean up multiple ul tags
-        html = html.replace(/<\/ul>\s*<ul>/g, '');
+        // Configure marked with custom renderer for images
+        const renderer = new marked.Renderer();
 
-        return `<p>${html}</p>`;
+        // Custom image renderer to handle relative paths
+        renderer.image = ({ href, title, text }) => {
+            let src = href || '';
+            // If relative path, convert to raw GitHub URL
+            if (src && !src.startsWith('http://') && !src.startsWith('https://')) {
+                src = `${rawBaseUrl}/${src.replace(/^\.?\/?/, '')}`;
+            }
+            const alt = text || '';
+            const titleAttr = title ? ` title="${title}"` : '';
+            return `<img src="${src}" alt="${alt}"${titleAttr} style="max-width: 100%;" onerror="this.style.display='none'">`;
+        };
+
+        // Custom link renderer to open in new tab
+        renderer.link = ({ href, title, text }) => {
+            const titleAttr = title ? ` title="${title}"` : '';
+            return `<a href="${href}" target="_blank"${titleAttr}>${text}</a>`;
+        };
+
+        // Use marked with custom renderer
+        const html = marked(md, {
+            renderer,
+            gfm: true,           // GitHub Flavored Markdown
+            breaks: true         // Convert \n to <br>
+        });
+
+        return typeof html === 'string' ? html : '';
     }
 
     public dispose() {
