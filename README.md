@@ -1,6 +1,6 @@
 # Antigravity Skill Manager
 
-[English](README.md) | [中文](README_zh-CN.md)
+[English](https://github.com/glasses666/antigravity-skill-manager/blob/main/README.md) | [中文](https://github.com/glasses666/antigravity-skill-manager/blob/main/README_zh-CN.md)
 
 Antigravity Skill Manager is a VS Code extension designed to supercharge your AI coding assistant. It allows you to discover, manage, and install "Skills" (specialized instructions and tools) for Claude Code and Antigravity.
 
