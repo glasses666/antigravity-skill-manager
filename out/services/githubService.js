@@ -1,0 +1,209 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GitHubService = void 0;
+const vscode = __importStar(require("vscode"));
+/**
+ * GitHub API service for fetching skill repositories
+ */
+class GitHubService {
+    constructor() {
+        this.baseUrl = 'https://api.github.com';
+    }
+    getHeaders() {
+        const headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'antigravity-skill-manager'
+        };
+        const config = vscode.workspace.getConfiguration('antigravity');
+        const token = config.get('githubToken');
+        if (token && token.trim()) {
+            headers['Authorization'] = `token ${token}`;
+        }
+        return headers;
+    }
+    /**
+     * Get repository contents
+     */
+    async getRepoContents(owner, repo, path = '') {
+        const url = `${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`;
+        const response = await fetch(url, { headers: this.getHeaders() });
+        if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error('GitHub API rate limit exceeded. Add a token in settings.');
+            }
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+        const data = await response.json();
+        return Array.isArray(data) ? data : [data];
+    }
+    /**
+     * Get repository info
+     */
+    async getRepoInfo(owner, repo) {
+        const url = `${this.baseUrl}/repos/${owner}/${repo}`;
+        const response = await fetch(url, { headers: this.getHeaders() });
+        if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+        return response.json();
+    }
+    /**
+     * Check if repository has SKILL.md
+     */
+    async hasSkillMd(owner, repo) {
+        try {
+            // Check root
+            const rootContents = await this.getRepoContents(owner, repo);
+            if (rootContents.some(item => item.name === 'SKILL.md')) {
+                return true;
+            }
+            // Check skills subdirectory if exists
+            const skillsDir = rootContents.find(item => item.name === 'skills' && item.type === 'dir');
+            if (skillsDir) {
+                const skillsContents = await this.getRepoContents(owner, repo, 'skills');
+                // If skills directory has subdirectories, each should have SKILL.md
+                for (const item of skillsContents) {
+                    if (item.type === 'dir') {
+                        try {
+                            const subContents = await this.getRepoContents(owner, repo, item.path);
+                            if (subContents.some(f => f.name === 'SKILL.md')) {
+                                return true;
+                            }
+                        }
+                        catch {
+                            continue;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Search for skill repositories on GitHub
+     */
+    async searchSkillRepos(query) {
+        // Search for repos with SKILL.md in path
+        const searchQuery = encodeURIComponent(`${query} SKILL.md in:path`);
+        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=20`;
+        const response = await fetch(url, { headers: this.getHeaders() });
+        if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error('GitHub API rate limit exceeded');
+            }
+            throw new Error(`Search failed: ${response.status}`);
+        }
+        const data = await response.json();
+        return data.items || [];
+    }
+    /**
+     * Get raw file content
+     */
+    async getRawContent(owner, repo, path) {
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            // Try master branch
+            const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/${path}`;
+            const masterResponse = await fetch(masterUrl);
+            if (!masterResponse.ok) {
+                throw new Error(`File not found: ${path}`);
+            }
+            return masterResponse.text();
+        }
+        return response.text();
+    }
+    /**
+     * Download a skill from GitHub
+     */
+    async downloadSkill(owner, repo, skillPath, destPath) {
+        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+        const path = await Promise.resolve().then(() => __importStar(require('path')));
+        // Create destination directory
+        if (!fs.existsSync(destPath)) {
+            fs.mkdirSync(destPath, { recursive: true });
+        }
+        // Get all files in the skill directory
+        const contents = await this.getRepoContents(owner, repo, skillPath);
+        for (const item of contents) {
+            const itemDest = path.join(destPath, item.name);
+            if (item.type === 'dir') {
+                // Recursively download directory
+                await this.downloadSkill(owner, repo, item.path, itemDest);
+            }
+            else if (item.type === 'file' && item.download_url) {
+                // Download file
+                const response = await fetch(item.download_url);
+                const content = await response.text();
+                fs.writeFileSync(itemDest, content, 'utf-8');
+            }
+        }
+    }
+    /**
+     * Clone entire repository's skill
+     */
+    async cloneSkill(repoUrl, destPath) {
+        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+        const { exec } = await Promise.resolve().then(() => __importStar(require('child_process')));
+        const { promisify } = await Promise.resolve().then(() => __importStar(require('util')));
+        const execAsync = promisify(exec);
+        // Try git clone first
+        try {
+            await execAsync(`git clone --depth 1 "${repoUrl}" "${destPath}"`);
+            // Remove .git directory
+            const gitDir = await Promise.resolve().then(() => __importStar(require('path'))).then(p => p.join(destPath, '.git'));
+            if (fs.existsSync(gitDir)) {
+                fs.rmSync(gitDir, { recursive: true, force: true });
+            }
+        }
+        catch {
+            // Fallback to API download if git is not available
+            const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (match) {
+                const [, owner, repo] = match;
+                await this.downloadSkill(owner, repo.replace('.git', ''), '', destPath);
+            }
+            else {
+                throw new Error('Invalid GitHub URL');
+            }
+        }
+    }
+}
+exports.GitHubService = GitHubService;
+//# sourceMappingURL=githubService.js.map

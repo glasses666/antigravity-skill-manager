@@ -1,0 +1,190 @@
+{
+  "name": "antigravity-skill-manager",
+  "displayName": "Antigravity Skill Manager",
+  "description": "Manage Antigravity/Claude Code skills - browse, install from GitHub, and create new skills",
+  "version": "0.1.0",
+  "publisher": "antigravity",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "antigravity",
+    "claude",
+    "claude-code",
+    "skills",
+    "ai",
+    "agent"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "antigravity-skills",
+          "title": "Antigravity Skills",
+          "icon": "media/brain.svg"
+        }
+      ]
+    },
+    "views": {
+      "antigravity-skills": [
+        {
+          "id": "localSkills",
+          "name": "Local Skills"
+        },
+        {
+          "id": "githubSkills",
+          "name": "GitHub - Official"
+        },
+        {
+          "id": "communitySkills",
+          "name": "Community Skills"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "antigravity.refreshSkills",
+        "title": "Refresh Skills",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "antigravity.createSkill",
+        "title": "Create New Skill",
+        "icon": "$(add)"
+      },
+      {
+        "command": "antigravity.installSkill",
+        "title": "Install Skill",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "antigravity.openSkillFile",
+        "title": "Open SKILL.md"
+      },
+      {
+        "command": "antigravity.openInGitHub",
+        "title": "Open in GitHub",
+        "icon": "$(github)"
+      },
+      {
+        "command": "antigravity.deleteSkill",
+        "title": "Delete Skill",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "antigravity.revealInExplorer",
+        "title": "Reveal in Explorer"
+      },
+      {
+        "command": "antigravity.searchSkills",
+        "title": "Search Skills",
+        "icon": "$(search)"
+      },
+      {
+        "command": "antigravity.filterSkills",
+        "title": "Filter Skills",
+        "icon": "$(filter)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "antigravity.refreshSkills",
+          "when": "view =~ /^(localSkills|githubSkills|communitySkills)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.createSkill",
+          "when": "view == localSkills",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.searchSkills",
+          "when": "view == communitySkills",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.filterSkills",
+          "when": "view == communitySkills",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "antigravity.openSkillFile",
+          "when": "viewItem == localSkill || viewItem == localSkillFile",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.revealInExplorer",
+          "when": "viewItem == localSkill",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.deleteSkill",
+          "when": "viewItem == localSkill",
+          "group": "2_modification"
+        },
+        {
+          "command": "antigravity.installSkill",
+          "when": "viewItem == githubSkill || viewItem == communitySkill",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.openInGitHub",
+          "when": "viewItem == githubSkill || viewItem == communitySkill",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Antigravity Skill Manager",
+      "properties": {
+        "antigravity.skillsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path for local skills directory. Leave empty to use default (~/.gemini/antigravity/skills)"
+        },
+        "antigravity.githubToken": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub personal access token (optional, increases API rate limit)"
+        },
+        "antigravity.showUnverifiedSkills": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show skills without valid SKILL.md in search results"
+        },
+        "antigravity.minStars": {
+          "type": "number",
+          "default": 0,
+          "description": "Minimum GitHub stars for community skills"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}
