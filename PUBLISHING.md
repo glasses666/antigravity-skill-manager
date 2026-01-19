@@ -5,13 +5,13 @@
 ## 前置准备
 
 1.  **创建 Open VSX 账号**: 访问 [open-vsx.org](https://open-vsx.org/) 并使用 GitHub 登录。
-2.  **创建 Namespace**: 在 Settings 页面创建一个 Namespace（建议与 `package.json` 中的 `publisher` 字段一致，当前为 `antigravity`）。如果是新的 `antigravity` 命名空间，可能需要官方验证，你可以修改 `package.json` 中的 `publisher` 为你的个人 ID。
+2.  **创建 Namespace**: 在 Settings 页面创建一个 Namespace（建议与 `package.json` 中的 `publisher` 字段一致，当前为 `Glasser`）。
 3.  **获取 Token**: 在 Settings -> Access Tokens 中生成一个新的 Token。
 
 ## 发布步骤
 
 ### 1. 修改 Publisher (如果需要)
-如果你不是 `antigravity` 组织的成员，请将 `package.json` 中的 `"publisher": "antigravity"` 修改为你自己的 Open VSX namespace。
+如果你不是 `Glasser` 组织的成员，请将 `package.json` 中的 `"publisher": "Glasser"` 修改为你自己的 Open VSX namespace。
 
 ### 2. 安装 `ovsx` 工具
 `ovsx` 是 Open VSX 的命令行发布工具（类似于 `vsce`）。
