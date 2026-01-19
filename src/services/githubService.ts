@@ -153,7 +153,7 @@ export class GitHubService {
     async searchSkillRepos(query: string): Promise<GitHubRepo[]> {
         // Search for repos with SKILL.md in path
         const searchQuery = encodeURIComponent(`${query} SKILL.md in:path`);
-        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=20`;
+        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=30`;
 
         const response = await fetch(url, { headers: await this.getHeaders() });
 
@@ -166,6 +166,44 @@ export class GitHubService {
 
         const data = await response.json() as GitHubSearchResult;
         return data.items || [];
+    }
+
+    /**
+     * Discover all skill repositories by searching for SKILL.md files
+     */
+    async discoverSkillRepos(): Promise<GitHubRepo[]> {
+        // Search for repos containing SKILL.md file, sorted by stars
+        const queries = [
+            'filename:SKILL.md',
+            'SKILL.md in:path claude',
+            'SKILL.md in:path agent skill'
+        ];
+
+        const allRepos = new Map<string, GitHubRepo>();
+
+        for (const query of queries) {
+            try {
+                const searchQuery = encodeURIComponent(query);
+                const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=30`;
+
+                const response = await fetch(url, { headers: await this.getHeaders() });
+
+                if (response.ok) {
+                    const data = await response.json() as GitHubSearchResult;
+                    for (const repo of data.items || []) {
+                        // Deduplicate by full_name
+                        if (!allRepos.has(repo.full_name)) {
+                            allRepos.set(repo.full_name, repo);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(`Search query failed: ${query}`, err);
+            }
+        }
+
+        // Sort by stars and return
+        return Array.from(allRepos.values()).sort((a, b) => b.stargazers_count - a.stargazers_count);
     }
 
     /**

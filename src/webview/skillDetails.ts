@@ -1,0 +1,424 @@
+import * as vscode from 'vscode';
+import { GitHubService } from '../services/githubService';
+import { CommunitySkill } from '../types';
+
+/**
+ * Skill Details Panel - Shows skill info like VS Code extension page
+ */
+export class SkillDetailsPanel {
+    public static currentPanel: SkillDetailsPanel | undefined;
+    private readonly _panel: vscode.WebviewPanel;
+    private readonly _extensionUri: vscode.Uri;
+    private _disposables: vscode.Disposable[] = [];
+    private _githubService: GitHubService;
+    private _skillsPath: string;
+
+    public static async createOrShow(
+        extensionUri: vscode.Uri,
+        skill: CommunitySkill,
+        skillsPath: string
+    ) {
+        const column = vscode.ViewColumn.One;
+
+        // If panel exists, update content
+        if (SkillDetailsPanel.currentPanel) {
+            SkillDetailsPanel.currentPanel._panel.reveal(column);
+            await SkillDetailsPanel.currentPanel._update(skill);
+            return;
+        }
+
+        // Create new panel
+        const panel = vscode.window.createWebviewPanel(
+            'skillDetails',
+            skill.name,
+            column,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+            }
+        );
+
+        SkillDetailsPanel.currentPanel = new SkillDetailsPanel(panel, extensionUri, skill, skillsPath);
+    }
+
+    private constructor(
+        panel: vscode.WebviewPanel,
+        extensionUri: vscode.Uri,
+        skill: CommunitySkill,
+        skillsPath: string
+    ) {
+        this._panel = panel;
+        this._extensionUri = extensionUri;
+        this._githubService = new GitHubService();
+        this._skillsPath = skillsPath;
+
+        // Set initial content
+        this._update(skill);
+
+        // Handle disposal
+        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+
+        // Handle messages
+        this._panel.webview.onDidReceiveMessage(
+            async message => {
+                switch (message.command) {
+                    case 'install':
+                        await this._installSkill(message.skill);
+                        return;
+                    case 'openGitHub':
+                        vscode.env.openExternal(vscode.Uri.parse(message.url));
+                        return;
+                }
+            },
+            null,
+            this._disposables
+        );
+    }
+
+    private async _installSkill(skill: CommunitySkill) {
+        const fs = await import('fs');
+        const path = await import('path');
+
+        const destPath = path.join(this._skillsPath, skill.name);
+
+        if (fs.existsSync(destPath)) {
+            const overwrite = await vscode.window.showQuickPick(['Yes', 'No'], {
+                placeHolder: `Skill "${skill.name}" exists. Overwrite?`
+            });
+            if (overwrite !== 'Yes') return;
+            fs.rmSync(destPath, { recursive: true, force: true });
+        }
+
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: `Installing ${skill.name}...`,
+            cancellable: false
+        }, async () => {
+            try {
+                await this._githubService.cloneSkill(skill.repoUrl, destPath);
+                vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
+                vscode.commands.executeCommand('antigravity.refreshSkills');
+            } catch (err) {
+                vscode.window.showErrorMessage(`Failed: ${err}`);
+            }
+        });
+    }
+
+    private async _update(skill: CommunitySkill) {
+        this._panel.title = skill.name;
+
+        // Get README content
+        let readmeContent = '';
+        try {
+            const match = skill.repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (match) {
+                const [, owner, repo] = match;
+                readmeContent = await this._githubService.getRawContent(owner, repo.replace('.git', ''), 'README.md');
+            }
+        } catch {
+            readmeContent = skill.description || 'No README available.';
+        }
+
+        this._panel.webview.html = this._getHtml(skill, readmeContent);
+    }
+
+    private _getHtml(skill: CommunitySkill, readmeContent: string): string {
+        // Simple markdown to HTML conversion
+        const readmeHtml = this._markdownToHtml(readmeContent);
+        const categoryIcons: Record<string, string> = {
+            development: '💻',
+            design: '🎨',
+            security: '🔒',
+            document: '📄',
+            testing: '🧪',
+            automation: '⚙️',
+            other: '📦'
+        };
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${skill.name}</title>
+    <style>
+        :root {
+            --vscode-font: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: var(--vscode-font);
+            padding: 0;
+            margin: 0;
+            color: var(--vscode-foreground);
+            background: var(--vscode-editor-background);
+            line-height: 1.6;
+        }
+        
+        .header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-sideBar-background);
+        }
+        
+        .header-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        .skill-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--vscode-button-background);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        
+        .skill-info {
+            flex: 1;
+        }
+        
+        .skill-name {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+        }
+        
+        .skill-meta {
+            color: var(--vscode-descriptionForeground);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        
+        .skill-meta span {
+            margin-right: 16px;
+        }
+        
+        .skill-description {
+            font-size: 14px;
+            color: var(--vscode-foreground);
+            margin-bottom: 16px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        
+        .btn-primary:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        
+        .btn-secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+        
+        .tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        
+        .tag {
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        
+        .content {
+            padding: 24px 32px;
+            max-width: 900px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        .tab.active {
+            color: var(--vscode-foreground);
+            border-bottom-color: var(--vscode-focusBorder);
+        }
+        
+        .readme {
+            font-size: 14px;
+        }
+        
+        .readme h1 { font-size: 24px; margin: 24px 0 12px; border-bottom: 1px solid var(--vscode-widget-border); padding-bottom: 8px; }
+        .readme h2 { font-size: 20px; margin: 20px 0 10px; }
+        .readme h3 { font-size: 16px; margin: 16px 0 8px; }
+        .readme p { margin: 8px 0; }
+        .readme pre { 
+            background: var(--vscode-textCodeBlock-background); 
+            padding: 12px; 
+            border-radius: 6px; 
+            overflow-x: auto;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 13px;
+        }
+        .readme code { 
+            background: var(--vscode-textCodeBlock-background); 
+            padding: 2px 6px; 
+            border-radius: 3px;
+            font-family: var(--vscode-editor-font-family, monospace);
+        }
+        .readme pre code { background: none; padding: 0; }
+        .readme ul, .readme ol { padding-left: 24px; }
+        .readme li { margin: 4px 0; }
+        .readme a { color: var(--vscode-textLink-foreground); }
+        .readme blockquote {
+            border-left: 4px solid var(--vscode-textBlockQuote-border);
+            margin: 12px 0;
+            padding: 8px 16px;
+            background: var(--vscode-textBlockQuote-background);
+        }
+        .readme img { max-width: 100%; border-radius: 6px; }
+        .readme table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .readme th, .readme td { border: 1px solid var(--vscode-widget-border); padding: 8px; text-align: left; }
+        .readme th { background: var(--vscode-sideBar-background); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="skill-icon">${categoryIcons[skill.category || 'other'] || '📦'}</div>
+            <div class="skill-info">
+                <h1 class="skill-name">${skill.name}</h1>
+                <div class="skill-meta">
+                    <span>⭐ ${skill.stars.toLocaleString()} stars</span>
+                    <span>🍴 ${skill.forks} forks</span>
+                    <span>📅 Updated ${new Date(skill.updatedAt).toLocaleDateString()}</span>
+                    ${skill.verified ? '<span>✅ Verified</span>' : ''}
+                </div>
+                <p class="skill-description">${skill.description || 'No description'}</p>
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="installSkill()">
+                        <span>⬇️</span> Install
+                    </button>
+                    <button class="btn-secondary" onclick="openGitHub()">
+                        <span>🔗</span> View on GitHub
+                    </button>
+                </div>
+                ${skill.topics.length > 0 ? `
+                <div class="tags">
+                    ${skill.topics.slice(0, 8).map(t => `<span class="tag">${t}</span>`).join('')}
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    </div>
+    
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">README</div>
+        </div>
+        <div class="readme">
+            ${readmeHtml}
+        </div>
+    </div>
+    
+    <script>
+        const vscode = acquireVsCodeApi();
+        const skill = ${JSON.stringify(skill)};
+        
+        function installSkill() {
+            vscode.postMessage({ command: 'install', skill });
+        }
+        
+        function openGitHub() {
+            vscode.postMessage({ command: 'openGitHub', url: skill.repoUrl });
+        }
+    </script>
+</body>
+</html>`;
+    }
+
+    private _markdownToHtml(md: string): string {
+        // Simple markdown to HTML conversion
+        let html = md
+            // Escape HTML
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            // Code blocks
+            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            // Headers
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            // Bold
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            // Images
+            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+            // Blockquotes
+            .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
+            // Unordered lists
+            .replace(/^\* (.*$)/gm, '<li>$1</li>')
+            .replace(/^- (.*$)/gm, '<li>$1</li>')
+            // Line breaks
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+
+        // Wrap lists
+        html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+        // Clean up multiple ul tags
+        html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+        return `<p>${html}</p>`;
+    }
+
+    public dispose() {
+        SkillDetailsPanel.currentPanel = undefined;
+        this._panel.dispose();
+        while (this._disposables.length) {
+            const d = this._disposables.pop();
+            if (d) d.dispose();
+        }
+    }
+}

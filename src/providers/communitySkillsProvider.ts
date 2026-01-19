@@ -157,39 +157,66 @@ export class CommunitySkillsProvider implements vscode.TreeDataProvider<Communit
 
     private async loadCuratedSkills(): Promise<void> {
         this.loading = true;
+        this.error = null;
         this._onDidChangeTreeData.fire();
 
         const loadedSkills: CommunitySkill[] = [];
+        const loadedRepoNames = new Set<string>();
 
+        // First, try to discover skills via GitHub search
+        try {
+            const discoveredRepos = await this.githubService.discoverSkillRepos();
+
+            for (const repo of discoveredRepos) {
+                if (loadedRepoNames.has(repo.full_name)) continue;
+                loadedRepoNames.add(repo.full_name);
+
+                loadedSkills.push({
+                    name: repo.name,
+                    repoUrl: repo.html_url,
+                    description: repo.description || '',
+                    stars: repo.stargazers_count,
+                    forks: repo.forks_count,
+                    updatedAt: repo.updated_at,
+                    topics: repo.topics || [],
+                    verified: true, // Discovered via SKILL.md search
+                    category: this.inferCategory(repo.topics, repo.description)
+                });
+            }
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error('Failed to discover skills:', err);
+
+            if (errorMsg.includes('403') || errorMsg.includes('rate limit')) {
+                this.error = '⚠️ GitHub API limit. Click 🔓 to sign in.';
+                this.loading = false;
+                this._onDidChangeTreeData.fire();
+                return;
+            }
+        }
+
+        // Then load curated skills if not already loaded
         for (const curated of this.curatedSkills) {
+            const fullName = `${curated.owner}/${curated.repo}`;
+            if (loadedRepoNames.has(fullName)) continue;
+
             try {
                 const repoInfo = await this.githubService.getRepoInfo(curated.owner, curated.repo);
-
-                // Verify SKILL.md exists
-                const verified = await this.githubService.hasSkillMd(curated.owner, curated.repo);
+                loadedRepoNames.add(fullName);
 
                 loadedSkills.push({
                     name: repoInfo.name,
                     repoUrl: repoInfo.html_url,
-                    description: repoInfo.description || '',
+                    description: repoInfo.description || curated.desc,
                     stars: repoInfo.stargazers_count,
                     forks: repoInfo.forks_count,
                     updatedAt: repoInfo.updated_at,
                     topics: repoInfo.topics || [],
-                    verified,
+                    verified: true,
                     category: curated.category
                 });
             } catch (err) {
-                const errorMsg = err instanceof Error ? err.message : String(err);
-                console.error(`Failed to load ${curated.owner}/${curated.repo}:`, err);
-
-                // Check if it's a rate limit error
-                if (errorMsg.includes('403') || errorMsg.includes('rate limit')) {
-                    this.error = '⚠️ GitHub API limit reached. Click 🔓 to sign in.';
-                    this.loading = false;
-                    this._onDidChangeTreeData.fire();
-                    return;
-                }
+                console.error(`Failed to load ${fullName}:`, err);
             }
         }
 
@@ -197,7 +224,7 @@ export class CommunitySkillsProvider implements vscode.TreeDataProvider<Communit
         this.skills = loadedSkills.sort((a, b) => b.stars - a.stars);
 
         if (this.skills.length === 0 && !this.error) {
-            this.error = '⚠️ No skills loaded. Click 🔓 to sign in to GitHub.';
+            this.error = '⚠️ No skills found. Click 🔓 to sign in.';
         }
 
         this.applyFilter();
