@@ -6,17 +6,71 @@ import { GitHubRepoContent, GitHubRepo, GitHubSearchResult } from '../types';
  */
 export class GitHubService {
     private baseUrl = 'https://api.github.com';
+    private cachedToken: string | null = null;
 
-    private getHeaders(): Record<string, string> {
+    /**
+     * Get GitHub token from VS Code authentication or settings
+     */
+    async getToken(): Promise<string | null> {
+        // Check cached token first
+        if (this.cachedToken) {
+            return this.cachedToken;
+        }
+
+        // Try settings first
+        const config = vscode.workspace.getConfiguration('antigravity');
+        const settingsToken = config.get<string>('githubToken');
+        if (settingsToken && settingsToken.trim()) {
+            this.cachedToken = settingsToken;
+            return settingsToken;
+        }
+
+        // Try VS Code GitHub authentication
+        try {
+            const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: false });
+            if (session) {
+                this.cachedToken = session.accessToken;
+                return session.accessToken;
+            }
+        } catch {
+            // Authentication not available
+        }
+
+        return null;
+    }
+
+    /**
+     * Login to GitHub using VS Code authentication
+     */
+    async login(): Promise<boolean> {
+        try {
+            const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+            if (session) {
+                this.cachedToken = session.accessToken;
+                vscode.window.showInformationMessage(`Logged in to GitHub as ${session.account.label}`);
+                return true;
+            }
+        } catch (err) {
+            vscode.window.showErrorMessage(`GitHub login failed: ${err}`);
+        }
+        return false;
+    }
+
+    /**
+     * Clear cached token
+     */
+    logout(): void {
+        this.cachedToken = null;
+    }
+
+    private async getHeaders(): Promise<Record<string, string>> {
         const headers: Record<string, string> = {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'antigravity-skill-manager'
         };
 
-        const config = vscode.workspace.getConfiguration('antigravity');
-        const token = config.get<string>('githubToken');
-
-        if (token && token.trim()) {
+        const token = await this.getToken();
+        if (token) {
             headers['Authorization'] = `token ${token}`;
         }
 
@@ -29,7 +83,7 @@ export class GitHubService {
     async getRepoContents(owner: string, repo: string, path: string = ''): Promise<GitHubRepoContent[]> {
         const url = `${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`;
 
-        const response = await fetch(url, { headers: this.getHeaders() });
+        const response = await fetch(url, { headers: await this.getHeaders() });
 
         if (!response.ok) {
             if (response.status === 403) {
@@ -48,7 +102,7 @@ export class GitHubService {
     async getRepoInfo(owner: string, repo: string): Promise<GitHubRepo> {
         const url = `${this.baseUrl}/repos/${owner}/${repo}`;
 
-        const response = await fetch(url, { headers: this.getHeaders() });
+        const response = await fetch(url, { headers: await this.getHeaders() });
 
         if (!response.ok) {
             throw new Error(`GitHub API error: ${response.status}`);
@@ -101,7 +155,7 @@ export class GitHubService {
         const searchQuery = encodeURIComponent(`${query} SKILL.md in:path`);
         const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=20`;
 
-        const response = await fetch(url, { headers: this.getHeaders() });
+        const response = await fetch(url, { headers: await this.getHeaders() });
 
         if (!response.ok) {
             if (response.status === 403) {

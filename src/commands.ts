@@ -260,4 +260,16 @@ export function registerCommands(
             }
         })
     );
+
+    // GitHub Login
+    context.subscriptions.push(
+        vscode.commands.registerCommand('antigravity.loginGitHub', async () => {
+            const success = await githubService.login();
+            if (success) {
+                // Refresh all providers after login
+                githubProvider.refresh();
+                communityProvider.refresh();
+            }
+        })
+    );
 }

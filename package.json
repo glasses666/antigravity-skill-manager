@@ -94,6 +94,11 @@
         "command": "antigravity.filterSkills",
         "title": "Filter Skills",
         "icon": "$(filter)"
+      },
+      {
+        "command": "antigravity.loginGitHub",
+        "title": "Sign in to GitHub",
+        "icon": "$(sign-in)"
       }
     ],
     "menus": {
@@ -101,6 +106,11 @@
         {
           "command": "antigravity.refreshSkills",
           "when": "view =~ /^(localSkills|githubSkills|communitySkills)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "antigravity.loginGitHub",
+          "when": "view == githubSkills || view == communitySkills",
           "group": "navigation"
         },
         {

@@ -113,7 +113,6 @@ class CommunitySkillsProvider {
         this.curatedSkills = [
             // Development & Coding
             { owner: 'obra', repo: 'superpowers', category: 'development', desc: 'Battle-tested skills library with 20+ skills' },
-            { owner: 'anthropics', repo: 'skills', category: 'development', desc: 'Official Anthropic skills collection' },
             // Testing
             { owner: 'conorluddy', repo: 'ios-simulator-skill', category: 'testing', desc: 'iOS Simulator automation' },
             { owner: 'lackeyjb', repo: 'playwright-skill', category: 'testing', desc: 'Playwright browser testing' },
@@ -127,9 +126,7 @@ class CommunitySkillsProvider {
             { owner: 'K-Dense-AI', repo: 'claude-scientific-skills', category: 'other', desc: 'Scientific computing skills' },
             // More from awesome-claude-skills
             { owner: 'obra', repo: 'superpowers-skills', category: 'development', desc: 'Community skills for superpowers' },
-            { owner: 'obra', repo: 'superpowers-lab', category: 'development', desc: 'Experimental superpowers skills' },
             { owner: 'asklokesh', repo: 'claudeskill-loki-mode', category: 'development', desc: 'Loki mode for enhanced coding' },
-            { owner: 'yusufkaraaslan', repo: 'Skill_Seekers', category: 'automation', desc: 'Convert docs to skills' },
         ];
         this.githubService = new githubService_1.GitHubService();
         this.loadCuratedSkills();
@@ -184,11 +181,22 @@ class CommunitySkillsProvider {
                 });
             }
             catch (err) {
+                const errorMsg = err instanceof Error ? err.message : String(err);
                 console.error(`Failed to load ${curated.owner}/${curated.repo}:`, err);
+                // Check if it's a rate limit error
+                if (errorMsg.includes('403') || errorMsg.includes('rate limit')) {
+                    this.error = '⚠️ GitHub API limit reached. Click 🔓 to sign in.';
+                    this.loading = false;
+                    this._onDidChangeTreeData.fire();
+                    return;
+                }
             }
         }
         // Sort by stars
         this.skills = loadedSkills.sort((a, b) => b.stars - a.stars);
+        if (this.skills.length === 0 && !this.error) {
+            this.error = '⚠️ No skills loaded. Click 🔓 to sign in to GitHub.';
+        }
         this.applyFilter();
         this.loading = false;
         this._onDidChangeTreeData.fire();
