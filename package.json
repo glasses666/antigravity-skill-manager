@@ -3,7 +3,12 @@
   "displayName": "Antigravity Skill Manager",
   "description": "Manage Antigravity/Claude Code skills - browse, install from GitHub, and create new skills",
   "version": "0.1.0",
+  "license": "MIT",
   "publisher": "antigravity",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antigravity/skill-manager"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

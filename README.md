@@ -1,54 +1,69 @@
 # Antigravity Skill Manager
 
-VS Code扩展，用于管理Antigravity/Claude Code的skills。
+[English](README.md) | [中文](README_zh-CN.md)
 
-## 功能
+Antigravity Skill Manager is a VS Code extension designed to supercharge your AI coding assistant. It allows you to discover, manage, and install "Skills" (specialized instructions and tools) for Claude Code and Antigravity.
 
-- 📁 **本地Skills管理** - 浏览、创建、编辑本地已安装的skills
-- ☁️ **GitHub官方仓库** - 浏览anthropics/skills官方技能
-- ⭐ **社区Skills** - 搜索和安装awesome-claude-skills社区精选
-- 🔍 **高级过滤** - 按分类、Star数、更新时间过滤
-- ✅ **SKILL.md验证** - 只显示包含有效SKILL.md的仓库
+![Demo](media/demo.png)
 
-## 安装
+## Features
 
-1. 打开VS Code
-2. 按 `F5` 启动扩展开发主机
-3. 在活动栏找到🧠图标
+### 🏪 Skill Store
+Browse a vast collection of community-created skills directly within VS Code.
+- **Rich UI**: Experience a marketplace-like interface with icons, ratings, and authors.
+- **Search**: Instantly search GitHub for skills matching your needs.
+- **One-Click Install**: Install skills seamlessly without leaving the editor.
+- **GitHub Auth**: Built-in GitHub authentication to bypass API rate limits.
 
-## 使用
+### 📄 Skill Details
+View detailed information about any skill before installing.
+- **README Rendering**: Automatically renders the skill's `README.md` or `SKILL.md` with full Markdown support (tables, images, links).
+- **Metadata**: Check stars, forks, verification status, and last update time.
+- **Image Support**: Images in READMEs are automatically processed to display correctly.
 
-### 浏览本地Skills
-点击活动栏的🧠图标，展开"Local Skills"查看已安装的skills。
+### ☁️ GitHub Integration
+- **Official Skills**: Browse curated skills from `anthropics/skills`.
+- **Community Discovery**: Automatically discovers skills from the community using `SKILL.md` markers.
+- **Verified Only**: Filters repositories to ensure valid skills with documentation are shown.
 
-### 从GitHub安装Skill
-1. 在"GitHub - Official"或"Community Skills"列表中右键点击skill
-2. 选择"Install Skill"
+### 📁 Local Management
+- Manage your installed skills in `~/.gemini/antigravity/skills` (or custom path).
+- Create new skills quickly with local templates.
+- Edit existing skills directly in VS Code.
 
-### 搜索社区Skills
-1. 点击"Community Skills"视图标题栏的🔍图标
-2. 输入关键词搜索
+## Installation
 
-### 创建新Skill
-点击"Local Skills"视图标题栏的➕图标。
+1. Open this project in VS Code.
+2. Run `npm install` to install dependencies.
+3. Press `F5` to start the extension in a new Debug window.
 
-## 配置
+## Usage
 
-| 设置 | 描述 | 默认值 |
-|------|------|--------|
-| `antigravity.skillsPath` | 自定义skills目录路径 | ~/.gemini/antigravity/skills |
-| `antigravity.githubToken` | GitHub token（提高API限制） | - |
-| `antigravity.minStars` | 社区skills最低Star数过滤 | 0 |
-| `antigravity.showUnverifiedSkills` | 显示无SKILL.md的仓库 | false |
+1. **Open the Manager**: Click the 🧠 icon in the Activity Bar.
+2. **Browse Skills**:
+   - **Local Skills**: Installed skills on your machine.
+   - **GitHub - Official**: Curated skills from Anthropic.
+   - **Skill Store**: Searchable community marketplace.
+3. **Install**: Click "Install" on any skill card or right-click a tree item.
+4. **View Details**: Click on any skill card to open the Details Webview.
 
-## 开发
+## Configuration
 
-```bash
-npm install
-npm run compile
-# 按 F5 启动调试
-```
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `antigravity.skillsPath` | Custom directory for installing skills | `~/.gemini/antigravity/skills` |
+| `antigravity.githubToken` | (Optional) Personal Access Token for GitHub API | - |
+| `antigravity.minStars` | Minimum stars filter for community skills | 0 |
+| `antigravity.showUnverifiedSkills` | Show repositories without `SKILL.md` | `false` |
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
