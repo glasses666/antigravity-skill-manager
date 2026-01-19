@@ -4,7 +4,7 @@
 
 Antigravity Skill Manager 是一个 VS Code 扩展，旨在增强您的 AI 编程助手体验。它允许您直接在 VS Code 中发现、管理和安装适用于 Claude Code 和 Antigravity 的 "Skills"（专用指令和工具）。
 
-![演示截图](media/demo.png)
+![演示截图](https://raw.githubusercontent.com/glasses666/antigravity-skill-manager/main/media/demo.png)
 
 ## 功能特性
 
