@@ -80,16 +80,32 @@ export class CommunitySkillsProvider implements vscode.TreeDataProvider<Communit
     private error: string | null = null;
     private searchQuery: string = '';
 
-    // Curated community skills from awesome-claude-skills
+    // Curated community skills from awesome-claude-skills and GitHub search
     private curatedSkills = [
-        { owner: 'obra', repo: 'superpowers', category: 'development' as SkillCategory },
-        { owner: 'conorluddy', repo: 'ios-simulator-skill', category: 'testing' as SkillCategory },
-        { owner: 'lackeyjb', repo: 'playwright-skill', category: 'testing' as SkillCategory },
-        { owner: 'chrisvoncsefalvay', repo: 'claude-d3js-skill', category: 'design' as SkillCategory },
-        { owner: 'alonw0', repo: 'web-asset-generator', category: 'design' as SkillCategory },
-        { owner: 'trailofbits', repo: 'skills', category: 'security' as SkillCategory },
-        { owner: 'K-Dense-AI', repo: 'claude-scientific-skills', category: 'other' as SkillCategory },
-        { owner: 'jthack', repo: 'ffuf_claude_skill', category: 'security' as SkillCategory }
+        // Development & Coding
+        { owner: 'obra', repo: 'superpowers', category: 'development' as SkillCategory, desc: 'Battle-tested skills library with 20+ skills' },
+        { owner: 'anthropics', repo: 'skills', category: 'development' as SkillCategory, desc: 'Official Anthropic skills collection' },
+
+        // Testing
+        { owner: 'conorluddy', repo: 'ios-simulator-skill', category: 'testing' as SkillCategory, desc: 'iOS Simulator automation' },
+        { owner: 'lackeyjb', repo: 'playwright-skill', category: 'testing' as SkillCategory, desc: 'Playwright browser testing' },
+
+        // Design & Visualization
+        { owner: 'chrisvoncsefalvay', repo: 'claude-d3js-skill', category: 'design' as SkillCategory, desc: 'D3.js data visualization' },
+        { owner: 'alonw0', repo: 'web-asset-generator', category: 'design' as SkillCategory, desc: 'Generate web assets and icons' },
+
+        // Security
+        { owner: 'trailofbits', repo: 'skills', category: 'security' as SkillCategory, desc: 'Security auditing skills' },
+        { owner: 'jthack', repo: 'ffuf_claude_skill', category: 'security' as SkillCategory, desc: 'Web fuzzing with ffuf' },
+
+        // Scientific & Data
+        { owner: 'K-Dense-AI', repo: 'claude-scientific-skills', category: 'other' as SkillCategory, desc: 'Scientific computing skills' },
+
+        // More from awesome-claude-skills
+        { owner: 'obra', repo: 'superpowers-skills', category: 'development' as SkillCategory, desc: 'Community skills for superpowers' },
+        { owner: 'obra', repo: 'superpowers-lab', category: 'development' as SkillCategory, desc: 'Experimental superpowers skills' },
+        { owner: 'asklokesh', repo: 'claudeskill-loki-mode', category: 'development' as SkillCategory, desc: 'Loki mode for enhanced coding' },
+        { owner: 'yusufkaraaslan', repo: 'Skill_Seekers', category: 'automation' as SkillCategory, desc: 'Convert docs to skills' },
     ];
 
     constructor() {

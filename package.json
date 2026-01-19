@@ -36,15 +36,18 @@
       "antigravity-skills": [
         {
           "id": "localSkills",
-          "name": "Local Skills"
+          "name": "Local Skills",
+          "icon": "$(folder)"
         },
         {
           "id": "githubSkills",
-          "name": "GitHub - Official"
+          "name": "GitHub - Official",
+          "icon": "$(github)"
         },
         {
           "id": "communitySkills",
-          "name": "Community Skills"
+          "name": "Community Skills",
+          "icon": "$(star)"
         }
       ]
     },
@@ -159,7 +162,7 @@
         },
         "antigravity.showUnverifiedSkills": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Show skills without valid SKILL.md in search results"
         },
         "antigravity.minStars": {

@@ -38,6 +38,7 @@ const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const githubService_1 = require("./services/githubService");
+const skillWizard_1 = require("./webview/skillWizard");
 /**
  * Register all extension commands
  */
@@ -50,71 +51,9 @@ function registerCommands(context, localProvider, githubProvider, communityProvi
         communityProvider.refresh();
         vscode.window.showInformationMessage('Skills refreshed');
     }));
-    // Create new skill
-    context.subscriptions.push(vscode.commands.registerCommand('antigravity.createSkill', async () => {
-        const name = await vscode.window.showInputBox({
-            prompt: 'Enter skill name',
-            placeHolder: 'my-awesome-skill',
-            validateInput: (value) => {
-                if (!value || value.trim().length === 0) {
-                    return 'Skill name is required';
-                }
-                if (!/^[a-z0-9-]+$/.test(value)) {
-                    return 'Use lowercase letters, numbers, and hyphens only';
-                }
-                return null;
-            }
-        });
-        if (!name)
-            return;
-        const description = await vscode.window.showInputBox({
-            prompt: 'Enter skill description',
-            placeHolder: 'A skill that helps with...'
-        });
-        const skillsDir = localProvider.getSkillsDirectory();
-        const skillPath = path.join(skillsDir, name);
-        if (fs.existsSync(skillPath)) {
-            vscode.window.showErrorMessage(`Skill "${name}" already exists`);
-            return;
-        }
-        try {
-            // Create skill directory structure
-            fs.mkdirSync(skillPath, { recursive: true });
-            fs.mkdirSync(path.join(skillPath, 'scripts'), { recursive: true });
-            fs.mkdirSync(path.join(skillPath, 'data'), { recursive: true });
-            fs.mkdirSync(path.join(skillPath, 'examples'), { recursive: true });
-            // Create SKILL.md
-            const skillMdContent = `---
-name: ${name}
-description: "${description || 'A custom skill for Antigravity/Claude Code'}"
----
-
-# ${name}
-
-${description || 'Add your skill description here.'}
-
-## How to Use
-
-Describe how to use this skill here.
-
-## Prerequisites
-
-List any prerequisites here.
-
-## Examples
-
-Add usage examples here.
-`;
-            fs.writeFileSync(path.join(skillPath, 'SKILL.md'), skillMdContent, 'utf-8');
-            // Refresh and open
-            localProvider.refresh();
-            const doc = await vscode.workspace.openTextDocument(path.join(skillPath, 'SKILL.md'));
-            await vscode.window.showTextDocument(doc);
-            vscode.window.showInformationMessage(`Skill "${name}" created successfully`);
-        }
-        catch (err) {
-            vscode.window.showErrorMessage(`Failed to create skill: ${err}`);
-        }
+    // Create new skill - opens wizard
+    context.subscriptions.push(vscode.commands.registerCommand('antigravity.createSkill', () => {
+        skillWizard_1.SkillWizardPanel.createOrShow(context.extensionUri, localProvider.getSkillsDirectory());
     }));
     // Install skill from GitHub
     context.subscriptions.push(vscode.commands.registerCommand('antigravity.installSkill', async (item) => {
