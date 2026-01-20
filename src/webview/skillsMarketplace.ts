@@ -64,6 +64,7 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
     public async refresh() {
         this._loading = true;
         this._error = null;
+        this._skills = []; // Clear before loading
         this._updateView();
 
         try {

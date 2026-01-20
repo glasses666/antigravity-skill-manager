@@ -81,6 +81,7 @@ class SkillsMarketplace {
     async refresh() {
         this._loading = true;
         this._error = null;
+        this._skills = []; // Clear before loading
         this._updateView();
         try {
             await vscode.window.withProgress({
