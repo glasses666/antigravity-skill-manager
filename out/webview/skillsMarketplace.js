@@ -90,29 +90,41 @@ class SkillsMarketplace {
             }, async (progress) => {
                 progress.report({ message: 'Fetching repositories...' });
                 const repos = await this._githubService.discoverSkillRepos();
-                // Filter repos that have README.md or SKILL.md
+                // Concurrent verification with batch processing
                 const validSkills = [];
+                const batchSize = 20; // Process 20 repos at a time
                 const total = repos.length;
-                for (let i = 0; i < repos.length; i++) {
-                    const repo = repos[i];
+                for (let i = 0; i < repos.length; i += batchSize) {
+                    const batch = repos.slice(i, i + batchSize);
+                    const batchEnd = Math.min(i + batchSize, total);
                     progress.report({
-                        message: `Verifying ${repo.name} (${i + 1}/${total})`,
-                        increment: 100 / total
+                        message: `Verifying skills (${batchEnd}/${total})...`,
+                        increment: (batchSize / total) * 100
                     });
-                    const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
-                    if (hasReadme) {
-                        validSkills.push({
-                            name: repo.name,
-                            repoUrl: repo.html_url,
-                            description: repo.description || '',
-                            stars: repo.stargazers_count,
-                            forks: repo.forks_count,
-                            updatedAt: repo.updated_at,
-                            topics: repo.topics || [],
-                            verified: true,
-                            category: this._inferCategory(repo.topics, repo.description),
-                            owner: repo.owner?.login || ''
-                        });
+                    // Concurrent verification within batch
+                    const results = await Promise.allSettled(batch.map(async (repo) => {
+                        const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
+                        if (hasReadme) {
+                            return {
+                                name: repo.name,
+                                repoUrl: repo.html_url,
+                                description: repo.description || '',
+                                stars: repo.stargazers_count,
+                                forks: repo.forks_count,
+                                updatedAt: repo.updated_at,
+                                topics: repo.topics || [],
+                                verified: true,
+                                category: this._inferCategory(repo.topics, repo.description),
+                                owner: repo.owner?.login || ''
+                            };
+                        }
+                        return null;
+                    }));
+                    // Collect valid results
+                    for (const result of results) {
+                        if (result.status === 'fulfilled' && result.value) {
+                            validSkills.push(result.value);
+                        }
                     }
                 }
                 this._skills = validSkills;
