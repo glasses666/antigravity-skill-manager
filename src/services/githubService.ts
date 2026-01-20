@@ -230,9 +230,15 @@ export class GitHubService {
     }
 
     /**
-     * Download a skill from GitHub
+     * Download a skill from GitHub with progress callback
      */
-    async downloadSkill(owner: string, repo: string, skillPath: string, destPath: string): Promise<void> {
+    async downloadSkill(
+        owner: string,
+        repo: string,
+        skillPath: string,
+        destPath: string,
+        onProgress?: (message: string, increment?: number) => void
+    ): Promise<void> {
         const fs = await import('fs');
         const path = await import('path');
 
@@ -242,15 +248,21 @@ export class GitHubService {
         }
 
         // Get all files in the skill directory
+        onProgress?.(`Fetching file list...`);
         const contents = await this.getRepoContents(owner, repo, skillPath);
+        const totalItems = contents.length;
+        let processed = 0;
 
         for (const item of contents) {
             const itemDest = path.join(destPath, item.name);
+            processed++;
 
             if (item.type === 'dir') {
+                onProgress?.(`Downloading folder: ${item.name}`, 100 / totalItems);
                 // Recursively download directory
-                await this.downloadSkill(owner, repo, item.path, itemDest);
+                await this.downloadSkill(owner, repo, item.path, itemDest, onProgress);
             } else if (item.type === 'file' && item.download_url) {
+                onProgress?.(`Downloading: ${item.name} (${processed}/${totalItems})`, 100 / totalItems);
                 // Download file
                 const response = await fetch(item.download_url);
                 const content = await response.text();

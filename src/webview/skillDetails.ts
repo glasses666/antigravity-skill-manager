@@ -77,7 +77,7 @@ export class SkillDetailsPanel {
         );
     }
 
-    private async _installSkill(skill: CommunitySkill) {
+    private async _installSkill(skill: CommunitySkill & { isOfficialSkill?: boolean; skillPath?: string; repoOwner?: string; repoName?: string }) {
         const fs = await import('fs');
         const path = await import('path');
 
@@ -95,9 +95,23 @@ export class SkillDetailsPanel {
             location: vscode.ProgressLocation.Notification,
             title: `Installing ${skill.name}...`,
             cancellable: false
-        }, async () => {
+        }, async (progress) => {
             try {
-                await this._githubService.cloneSkill(skill.repoUrl, destPath);
+                // Check if this is an official skill with a specific path
+                if (skill.isOfficialSkill && skill.skillPath && skill.repoOwner && skill.repoName) {
+                    // Download only the specific skill subdirectory
+                    await this._githubService.downloadSkill(
+                        skill.repoOwner,
+                        skill.repoName,
+                        skill.skillPath,
+                        destPath,
+                        (msg, increment) => progress.report({ message: msg, increment })
+                    );
+                } else {
+                    // Clone entire repo for community skills
+                    progress.report({ message: 'Cloning repository...' });
+                    await this._githubService.cloneSkill(skill.repoUrl, destPath);
+                }
                 vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
                 vscode.commands.executeCommand('antigravity.refreshSkills');
             } catch (err) {

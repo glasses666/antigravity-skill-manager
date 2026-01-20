@@ -71,7 +71,12 @@ class GitHubSkillItem extends vscode.TreeItem {
                             updatedAt: new Date().toISOString(),
                             topics: [],
                             verified: skill.verified || true,
-                            category: 'development'
+                            category: 'development',
+                            // Preserve official skill info for correct installation
+                            isOfficialSkill: true,
+                            skillPath: skill.path,
+                            repoOwner: skill.repoOwner,
+                            repoName: skill.repoName
                         }
                     }]
             };

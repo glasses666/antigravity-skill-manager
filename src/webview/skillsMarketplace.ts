@@ -67,31 +67,45 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
         this._updateView();
 
         try {
-            const repos = await this._githubService.discoverSkillRepos();
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Scanning Community Skills...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: 'Fetching repositories...' });
+                const repos = await this._githubService.discoverSkillRepos();
 
-            // Filter repos that have README.md or SKILL.md
-            const validSkills: CommunitySkill[] = [];
+                // Filter repos that have README.md or SKILL.md
+                const validSkills: CommunitySkill[] = [];
+                const total = repos.length;
 
-            for (const repo of repos) {
-                const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
-                if (hasReadme) {
-                    validSkills.push({
-                        name: repo.name,
-                        repoUrl: repo.html_url,
-                        description: repo.description || '',
-                        stars: repo.stargazers_count,
-                        forks: repo.forks_count,
-                        updatedAt: repo.updated_at,
-                        topics: repo.topics || [],
-                        verified: true,
-                        category: this._inferCategory(repo.topics, repo.description),
-                        owner: repo.owner?.login || ''
-                    } as CommunitySkill & { owner: string });
+                for (let i = 0; i < repos.length; i++) {
+                    const repo = repos[i];
+                    progress.report({
+                        message: `Verifying ${repo.name} (${i + 1}/${total})`,
+                        increment: 100 / total
+                    });
+
+                    const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
+                    if (hasReadme) {
+                        validSkills.push({
+                            name: repo.name,
+                            repoUrl: repo.html_url,
+                            description: repo.description || '',
+                            stars: repo.stargazers_count,
+                            forks: repo.forks_count,
+                            updatedAt: repo.updated_at,
+                            topics: repo.topics || [],
+                            verified: true,
+                            category: this._inferCategory(repo.topics, repo.description),
+                            owner: repo.owner?.login || ''
+                        } as CommunitySkill & { owner: string });
+                    }
                 }
-            }
 
-            this._skills = validSkills;
-            this._error = null;
+                this._skills = validSkills;
+                this._error = null;
+            });
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (msg.includes('403') || msg.includes('rate limit')) {
@@ -164,7 +178,7 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _installSkill(skill: CommunitySkill) {
+    private async _installSkill(skill: CommunitySkill & { isOfficialSkill?: boolean; skillPath?: string; repoOwner?: string; repoName?: string }) {
         const fs = await import('fs');
         const path = await import('path');
 
@@ -182,9 +196,23 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
             location: vscode.ProgressLocation.Notification,
             title: `Installing ${skill.name}...`,
             cancellable: false
-        }, async () => {
+        }, async (progress) => {
             try {
-                await this._githubService.cloneSkill(skill.repoUrl, destPath);
+                // Check if this is an official skill with a specific path
+                if (skill.isOfficialSkill && skill.skillPath && skill.repoOwner && skill.repoName) {
+                    // Download only the specific skill subdirectory
+                    await this._githubService.downloadSkill(
+                        skill.repoOwner,
+                        skill.repoName,
+                        skill.skillPath,
+                        destPath,
+                        (msg, increment) => progress.report({ message: msg, increment })
+                    );
+                } else {
+                    // Clone entire repo for community skills
+                    progress.report({ message: 'Cloning repository...' });
+                    await this._githubService.cloneSkill(skill.repoUrl, destPath);
+                }
                 vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
                 vscode.commands.executeCommand('antigravity.refreshSkills');
             } catch (err) {

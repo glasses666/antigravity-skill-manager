@@ -234,9 +234,9 @@ class GitHubService {
         return response.text();
     }
     /**
-     * Download a skill from GitHub
+     * Download a skill from GitHub with progress callback
      */
-    async downloadSkill(owner, repo, skillPath, destPath) {
+    async downloadSkill(owner, repo, skillPath, destPath, onProgress) {
         const fs = await Promise.resolve().then(() => __importStar(require('fs')));
         const path = await Promise.resolve().then(() => __importStar(require('path')));
         // Create destination directory
@@ -244,14 +244,20 @@ class GitHubService {
             fs.mkdirSync(destPath, { recursive: true });
         }
         // Get all files in the skill directory
+        onProgress?.(`Fetching file list...`);
         const contents = await this.getRepoContents(owner, repo, skillPath);
+        const totalItems = contents.length;
+        let processed = 0;
         for (const item of contents) {
             const itemDest = path.join(destPath, item.name);
+            processed++;
             if (item.type === 'dir') {
+                onProgress?.(`Downloading folder: ${item.name}`, 100 / totalItems);
                 // Recursively download directory
-                await this.downloadSkill(owner, repo, item.path, itemDest);
+                await this.downloadSkill(owner, repo, item.path, itemDest, onProgress);
             }
             else if (item.type === 'file' && item.download_url) {
+                onProgress?.(`Downloading: ${item.name} (${processed}/${totalItems})`, 100 / totalItems);
                 // Download file
                 const response = await fetch(item.download_url);
                 const content = await response.text();
