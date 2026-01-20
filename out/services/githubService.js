@@ -167,65 +167,70 @@ class GitHubService {
         }
     }
     /**
-     * Search for skill repositories on GitHub
+     * Check if a repo is an MCP tool (should be filtered out)
      */
-    async searchSkillRepos(query) {
-        // Search for repos with SKILL.md in path
-        const searchQuery = encodeURIComponent(`${query} SKILL.md in:path`);
-        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=30`;
-        const response = await fetch(url, { headers: await this.getHeaders() });
-        if (!response.ok) {
-            if (response.status === 403) {
-                throw new Error('GitHub API rate limit exceeded');
-            }
-            throw new Error(`Search failed: ${response.status}`);
+    _isMCPTool(repo) {
+        const name = repo.name.toLowerCase();
+        const desc = (repo.description || '').toLowerCase();
+        const topics = repo.topics || [];
+        // Filter out MCP (Model Context Protocol) tools
+        if (topics.includes('mcp') || topics.includes('mcp-server') || topics.includes('model-context-protocol')) {
+            return true;
         }
-        const data = await response.json();
-        return data.items || [];
+        if (name.includes('mcp-') || name.includes('-mcp') || name === 'mcp') {
+            return true;
+        }
+        if (desc.includes('model context protocol') || desc.includes('mcp server')) {
+            return true;
+        }
+        return false;
     }
     /**
-     * Discover all skill repositories by searching for SKILL.md files
+     * Discover skill repositories with pagination
      */
-    async discoverSkillRepos() {
-        // Multiple search strategies for comprehensive discovery
-        const queries = [
-            // Topic-based searches (most reliable)
-            'topic:claude-code',
-            'topic:ai-skills',
-            'topic:antigravity',
-            'topic:claude-skill',
-            'topic:cursor-ai skill',
-            // Content-based searches
-            'SKILL.md in:path',
-            'SKILL.md in:name',
-            // Description-based searches
-            'claude skill in:description',
-            'AI skill claude in:description',
-            'antigravity skill in:description'
-        ];
-        const allRepos = new Map();
-        for (const query of queries) {
-            try {
-                const searchQuery = encodeURIComponent(query);
-                // Increased per_page to 100 for better coverage
-                const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=100`;
-                const response = await fetch(url, { headers: await this.getHeaders() });
-                if (response.ok) {
-                    const data = await response.json();
-                    for (const repo of data.items || []) {
-                        // Deduplicate by full_name
-                        if (!allRepos.has(repo.full_name)) {
-                            allRepos.set(repo.full_name, repo);
-                        }
-                    }
-                }
-            }
-            catch (err) {
-                console.error(`Search query failed: ${query}`, err);
+    async discoverSkillRepos(page = 1, perPage = 30) {
+        // Use a single efficient query for paginated results
+        const query = 'topic:claude-code OR topic:ai-skills OR topic:antigravity OR SKILL.md in:path';
+        const searchQuery = encodeURIComponent(query);
+        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&page=${page}&per_page=${perPage}`;
+        try {
+            const response = await fetch(url, { headers: await this.getHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                // Filter out MCP tools
+                const filteredRepos = (data.items || []).filter(repo => !this._isMCPTool(repo));
+                const total = data.total_count || 0;
+                const hasMore = page * perPage < total;
+                return { repos: filteredRepos, hasMore, total };
             }
         }
-        // Sort by stars and return
-        return Array.from(allRepos.values()).sort((a, b) => b.stargazers_count - a.stargazers_count);
+        catch (err) {
+            console.error('Discover skill repos failed:', err);
+        }
+        return { repos: [], hasMore: false, total: 0 };
+    }
+    /**
+     * Search skill repositories by query
+     */
+    async searchSkillRepos(query, page = 1, perPage = 30) {
+        // Combine user query with skill-related filters
+        const searchQuery = encodeURIComponent(`${query} (topic:claude-code OR topic:ai-skills OR SKILL.md in:path)`);
+        const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&page=${page}&per_page=${perPage}`;
+        try {
+            const response = await fetch(url, { headers: await this.getHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                // Filter out MCP tools
+                const filteredRepos = (data.items || []).filter(repo => !this._isMCPTool(repo));
+                const total = data.total_count || 0;
+                const hasMore = page * perPage < total;
+                return { repos: filteredRepos, hasMore, total };
+            }
+        }
+        catch (err) {
+            console.error('Search skill repos failed:', err);
+        }
+        return { repos: [], hasMore: false, total: 0 };
     }
     /**
      * Get raw file content

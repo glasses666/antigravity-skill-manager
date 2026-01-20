@@ -74,7 +74,7 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 cancellable: false
             }, async (progress) => {
                 progress.report({ message: 'Fetching repositories...' });
-                const repos = await this._githubService.discoverSkillRepos();
+                const { repos } = await this._githubService.discoverSkillRepos();
 
                 // Concurrent verification with batch processing
                 const batchSize = 20; // Process 20 repos at a time
@@ -164,7 +164,7 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
         this._updateView();
 
         try {
-            const repos = await this._githubService.searchSkillRepos(query);
+            const { repos } = await this._githubService.searchSkillRepos(query);
 
             this._skills = repos.map(repo => ({
                 name: repo.name,

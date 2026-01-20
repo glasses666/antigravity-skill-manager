@@ -173,7 +173,7 @@ class CommunitySkillsProvider {
         const loadedRepoNames = new Set();
         // First, try to discover skills via GitHub search
         try {
-            const discoveredRepos = await this.githubService.discoverSkillRepos();
+            const { repos: discoveredRepos } = await this.githubService.discoverSkillRepos();
             for (const repo of discoveredRepos) {
                 if (loadedRepoNames.has(repo.full_name))
                     continue;
@@ -239,7 +239,7 @@ class CommunitySkillsProvider {
         this.loading = true;
         this._onDidChangeTreeData.fire();
         try {
-            const results = await this.githubService.searchSkillRepos(query);
+            const { repos: results } = await this.githubService.searchSkillRepos(query);
             const config = vscode.workspace.getConfiguration('antigravity');
             const minStars = config.get('minStars') || 0;
             const showUnverified = config.get('showUnverifiedSkills') || false;
