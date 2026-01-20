@@ -15,6 +15,11 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
     private _githubService: GitHubService;
     private _skillsPath: string;
     private _extensionUri: vscode.Uri;
+    private _hasMore = false;
+    private _totalCount = 0;
+    private _currentPage = 1;
+    private _searchQuery = '';
+    private readonly _perPage = 30;
 
     constructor(extensionUri: vscode.Uri, skillsPath: string) {
         this._extensionUri = extensionUri;
@@ -54,6 +59,9 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 case 'login':
                     await this._login();
                     break;
+                case 'loadMore':
+                    await this.loadMore();
+                    break;
             }
         });
 
@@ -64,109 +72,24 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
     public async refresh() {
         this._loading = true;
         this._error = null;
-        this._skills = []; // Clear before loading
+        this._skills = [];
+        this._currentPage = 1;
+        this._searchQuery = '';
         this._updateView();
 
-        try {
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Scanning Community Skills...',
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: 'Fetching repositories...' });
-                const { repos } = await this._githubService.discoverSkillRepos();
-
-                // Concurrent verification with batch processing
-                const batchSize = 20; // Process 20 repos at a time
-                const total = repos.length;
-
-                for (let i = 0; i < repos.length; i += batchSize) {
-                    const batch = repos.slice(i, i + batchSize);
-                    const batchEnd = Math.min(i + batchSize, total);
-                    progress.report({
-                        message: `Verifying skills (${batchEnd}/${total})...`,
-                        increment: (batchSize / total) * 100
-                    });
-
-                    // Concurrent verification within batch
-                    const results = await Promise.allSettled(
-                        batch.map(async (repo) => {
-                            const hasReadme = await this._hasReadmeOrSkillMd(repo.owner?.login || '', repo.name);
-                            if (hasReadme) {
-                                return {
-                                    name: repo.name,
-                                    repoUrl: repo.html_url,
-                                    description: repo.description || '',
-                                    stars: repo.stargazers_count,
-                                    forks: repo.forks_count,
-                                    updatedAt: repo.updated_at,
-                                    topics: repo.topics || [],
-                                    verified: true,
-                                    category: this._inferCategory(repo.topics, repo.description),
-                                    owner: repo.owner?.login || ''
-                                } as CommunitySkill & { owner: string };
-                            }
-                            return null;
-                        })
-                    );
-
-                    // Collect valid results and update view progressively
-                    for (const result of results) {
-                        if (result.status === 'fulfilled' && result.value) {
-                            this._skills.push(result.value);
-                        }
-                    }
-
-                    // Progressive update: show skills as they're discovered
-                    this._updateView();
-                }
-
-                this._error = null;
-            });
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes('403') || msg.includes('rate limit')) {
-                this._error = 'rate_limit';
-            } else {
-                this._error = msg;
-            }
-            this._skills = [];
-        }
-
-        this._loading = false;
-        this._updateView();
+        await this._loadPage(1);
     }
 
-    private async _hasReadmeOrSkillMd(owner: string, repo: string): Promise<boolean> {
-        if (!owner || !repo) return false;
-
-        const files = ['README.md', 'readme.md', 'SKILL.md'];
-        for (const file of files) {
-            try {
-                const content = await this._githubService.getRawContent(owner, repo, file);
-                if (content && content.trim().length > 50) {
-                    return true;
-                }
-            } catch {
-                continue;
-            }
-        }
-        return false;
-    }
-
-    private async _search(query: string) {
-        if (!query.trim()) {
-            await this.refresh();
-            return;
-        }
-
+    private async _loadPage(page: number) {
         this._loading = true;
         this._updateView();
 
         try {
-            const { repos } = await this._githubService.searchSkillRepos(query);
+            const result = this._searchQuery
+                ? await this._githubService.searchSkillRepos(this._searchQuery, page, this._perPage)
+                : await this._githubService.discoverSkillRepos(page, this._perPage);
 
-            this._skills = repos.map(repo => ({
+            const newSkills = result.repos.map(repo => ({
                 name: repo.name,
                 repoUrl: repo.html_url,
                 description: repo.description || '',
@@ -177,15 +100,48 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 verified: true,
                 category: this._inferCategory(repo.topics, repo.description),
                 owner: repo.owner?.login || ''
-            }));
+            } as CommunitySkill & { owner: string }));
 
+            if (page === 1) {
+                this._skills = newSkills;
+            } else {
+                this._skills = [...this._skills, ...newSkills];
+            }
+
+            this._currentPage = page;
+            this._hasMore = result.hasMore;
+            this._totalCount = result.total;
             this._error = null;
         } catch (err) {
-            this._error = err instanceof Error ? err.message : String(err);
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('403') || msg.includes('rate limit')) {
+                this._error = 'rate_limit';
+            } else {
+                this._error = msg;
+            }
         }
 
         this._loading = false;
         this._updateView();
+    }
+
+    public async loadMore() {
+        if (this._loading || !this._hasMore) return;
+        await this._loadPage(this._currentPage + 1);
+    }
+
+    private async _hasReadmeOrSkillMd(owner: string, repo: string): Promise<boolean> {
+        return true; // Deprecated: filtering is now done by GitHub API query
+    }
+
+    private async _search(query: string) {
+        this._searchQuery = query.trim();
+        this._skills = [];
+        this._currentPage = 1;
+        this._loading = true;
+        this._updateView();
+
+        await this._loadPage(1);
     }
 
     private async _login() {
@@ -503,6 +459,12 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
             <div class="skills-list">
                 ${skillsHtml}
             </div>
+            ${this._hasMore ? `
+                <div style="text-align: center; padding: 10px;">
+                    <button class="error-btn" onclick="loadMore()">Load More (${this._skills.length}${this._totalCount ? `/${this._totalCount}` : ''})</button>
+                    ${this._loading ? '<div style="margin-top:5px;font-size:11px;">Loading...</div>' : ''}
+                </div>
+            ` : ''}
         ` : ''}
     `}
     
@@ -516,6 +478,10 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
         
         function refresh() {
             vscode.postMessage({ command: 'refresh' });
+        }
+        
+        function loadMore() {
+            vscode.postMessage({ command: 'loadMore' });
         }
         
         function login() {

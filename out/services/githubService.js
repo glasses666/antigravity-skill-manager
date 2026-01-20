@@ -190,7 +190,7 @@ class GitHubService {
      */
     async discoverSkillRepos(page = 1, perPage = 30) {
         // Use a single efficient query for paginated results
-        const query = 'topic:claude-code OR topic:ai-skills OR topic:antigravity OR SKILL.md in:path';
+        const query = 'topic:claude-code OR topic:ai-skills OR topic:antigravity OR SKILL.md in:path OR filename:marketplace.json';
         const searchQuery = encodeURIComponent(query);
         const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&page=${page}&per_page=${perPage}`;
         try {
