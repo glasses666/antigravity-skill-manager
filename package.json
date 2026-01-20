@@ -46,6 +46,12 @@
           "icon": "$(folder)"
         },
         {
+          "type": "webview",
+          "id": "localSkillsWebview",
+          "name": "Skill Manager",
+          "icon": "$(settings-gear)"
+        },
+        {
           "id": "githubSkills",
           "name": "GitHub - Official",
           "icon": "$(github)"

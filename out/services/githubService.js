@@ -187,17 +187,28 @@ class GitHubService {
      * Discover all skill repositories by searching for SKILL.md files
      */
     async discoverSkillRepos() {
-        // Search for repos containing SKILL.md file, sorted by stars
+        // Multiple search strategies for comprehensive discovery
         const queries = [
-            'filename:SKILL.md',
-            'SKILL.md in:path claude',
-            'SKILL.md in:path agent skill'
+            // Topic-based searches (most reliable)
+            'topic:claude-code',
+            'topic:ai-skills',
+            'topic:antigravity',
+            'topic:claude-skill',
+            'topic:cursor-ai skill',
+            // Content-based searches
+            'SKILL.md in:path',
+            'SKILL.md in:name',
+            // Description-based searches
+            'claude skill in:description',
+            'AI skill claude in:description',
+            'antigravity skill in:description'
         ];
         const allRepos = new Map();
         for (const query of queries) {
             try {
                 const searchQuery = encodeURIComponent(query);
-                const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=30`;
+                // Increased per_page to 100 for better coverage
+                const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=100`;
                 const response = await fetch(url, { headers: await this.getHeaders() });
                 if (response.ok) {
                     const data = await response.json();
@@ -258,10 +269,20 @@ class GitHubService {
             }
             else if (item.type === 'file' && item.download_url) {
                 onProgress?.(`Downloading: ${item.name} (${processed}/${totalItems})`, 100 / totalItems);
-                // Download file
+                // Download file - handle binary vs text files
                 const response = await fetch(item.download_url);
-                const content = await response.text();
-                fs.writeFileSync(itemDest, content, 'utf-8');
+                const ext = item.name.split('.').pop()?.toLowerCase() || '';
+                const binaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'otf', 'pdf', 'zip', 'tar', 'gz'];
+                if (binaryExtensions.includes(ext)) {
+                    // Binary file - use arrayBuffer
+                    const buffer = await response.arrayBuffer();
+                    fs.writeFileSync(itemDest, Buffer.from(buffer));
+                }
+                else {
+                    // Text file
+                    const content = await response.text();
+                    fs.writeFileSync(itemDest, content, 'utf-8');
+                }
             }
         }
     }

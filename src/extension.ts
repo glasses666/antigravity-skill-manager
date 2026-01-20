@@ -5,6 +5,7 @@ import { LocalSkillsProvider } from './providers/localSkillsProvider';
 import { GitHubSkillsProvider } from './providers/githubSkillsProvider';
 import { CommunitySkillsProvider } from './providers/communitySkillsProvider';
 import { SkillsMarketplace } from './webview/skillsMarketplace';
+import { LocalSkillsWebview } from './webview/localSkillsWebview';
 import { registerCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -32,8 +33,10 @@ export function activate(context: vscode.ExtensionContext) {
         showCollapseAll: true
     });
 
-    // Register webview provider for marketplace
+    // Register webview providers
+    const localSkillsWebview = new LocalSkillsWebview(context.extensionUri);
     context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider('localSkillsWebview', localSkillsWebview),
         vscode.window.registerWebviewViewProvider('skillsMarketplace', marketplaceProvider)
     );
 

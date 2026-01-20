@@ -42,6 +42,7 @@ const localSkillsProvider_1 = require("./providers/localSkillsProvider");
 const githubSkillsProvider_1 = require("./providers/githubSkillsProvider");
 const communitySkillsProvider_1 = require("./providers/communitySkillsProvider");
 const skillsMarketplace_1 = require("./webview/skillsMarketplace");
+const localSkillsWebview_1 = require("./webview/localSkillsWebview");
 const commands_1 = require("./commands");
 function activate(context) {
     console.log('Antigravity Skill Manager is now active!');
@@ -63,8 +64,9 @@ function activate(context) {
         treeDataProvider: githubProvider,
         showCollapseAll: true
     });
-    // Register webview provider for marketplace
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider('skillsMarketplace', marketplaceProvider));
+    // Register webview providers
+    const localSkillsWebview = new localSkillsWebview_1.LocalSkillsWebview(context.extensionUri);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider('localSkillsWebview', localSkillsWebview), vscode.window.registerWebviewViewProvider('skillsMarketplace', marketplaceProvider));
     // Register commands
     (0, commands_1.registerCommands)(context, localProvider, githubProvider, communityProvider);
     // Watch for configuration changes

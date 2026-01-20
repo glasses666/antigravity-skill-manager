@@ -212,6 +212,14 @@ class SkillsMarketplace {
                     progress.report({ message: 'Cloning repository...' });
                     await this._githubService.cloneSkill(skill.repoUrl, destPath);
                 }
+                // Save source info for future updates
+                const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+                const sourceInfo = {
+                    url: skill.repoUrl,
+                    installedAt: new Date().toISOString(),
+                    isOfficialSkill: skill.isOfficialSkill || false
+                };
+                fs.writeFileSync(require('path').join(destPath, '.source.json'), JSON.stringify(sourceInfo, null, 2));
                 vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
                 vscode.commands.executeCommand('antigravity.refreshSkills');
             }

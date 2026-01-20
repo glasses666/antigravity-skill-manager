@@ -112,6 +112,18 @@ export class SkillDetailsPanel {
                     progress.report({ message: 'Cloning repository...' });
                     await this._githubService.cloneSkill(skill.repoUrl, destPath);
                 }
+
+                // Save source info for future updates
+                const sourceInfo = {
+                    url: skill.repoUrl,
+                    installedAt: new Date().toISOString(),
+                    isOfficialSkill: skill.isOfficialSkill || false
+                };
+                fs.writeFileSync(
+                    path.join(destPath, '.source.json'),
+                    JSON.stringify(sourceInfo, null, 2)
+                );
+
                 vscode.window.showInformationMessage(`✅ ${skill.name} installed!`);
                 vscode.commands.executeCommand('antigravity.refreshSkills');
             } catch (err) {
