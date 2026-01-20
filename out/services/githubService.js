@@ -190,8 +190,9 @@ class GitHubService {
      */
     async discoverSkillRepos(page = 1, perPage = 30) {
         // Use a single efficient query for paginated results
-        const query = 'topic:claude-code OR topic:ai-skills OR topic:antigravity OR SKILL.md in:path OR filename:marketplace.json';
-        const searchQuery = encodeURIComponent(query);
+        const query = 'topic:antigravity OR topic:ai-skills OR topic:claude-code';
+        // Note: Complex OR queries can be unstable. Using a simple query that is known to work.
+        const searchQuery = encodeURIComponent('topic:antigravity');
         const url = `${this.baseUrl}/search/repositories?q=${searchQuery}&sort=stars&order=desc&page=${page}&per_page=${perPage}`;
         try {
             const response = await fetch(url, { headers: await this.getHeaders() });
@@ -202,6 +203,9 @@ class GitHubService {
                 const total = data.total_count || 0;
                 const hasMore = page * perPage < total;
                 return { repos: filteredRepos, hasMore, total };
+            }
+            else {
+                console.error('GitHub API Error:', await response.text());
             }
         }
         catch (err) {
