@@ -475,11 +475,7 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
         </div>
     </div>
     
-    ${this._loading ? `
-        <div class="loading">
-            <div>⏳ Loading skills...</div>
-        </div>
-    ` : this._error === 'rate_limit' ? `
+    ${this._error === 'rate_limit' ? `
         <div class="error">
             <div>⚠️ GitHub API limit reached</div>
             <button class="error-btn" onclick="login()">🔓 Sign in to GitHub</button>
@@ -489,17 +485,25 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
             <div>❌ ${this._error}</div>
             <button class="error-btn" onclick="refresh()">Retry</button>
         </div>
-    ` : this._skills.length === 0 ? `
-        <div class="empty">
-            <div>No skills found</div>
-        </div>
     ` : `
-        <div class="info-bar">
-            Found ${this._skills.length} skills
-        </div>
-        <div class="skills-list">
-            ${skillsHtml}
-        </div>
+        ${this._loading ? `
+            <div class="info-bar" style="display: flex; align-items: center; gap: 8px;">
+                <span>⏳</span> Loading... (${this._skills.length} skills found)
+            </div>
+        ` : this._skills.length === 0 ? `
+            <div class="empty">
+                <div>No skills found</div>
+            </div>
+        ` : `
+            <div class="info-bar">
+                Found ${this._skills.length} skills
+            </div>
+        `}
+        ${this._skills.length > 0 ? `
+            <div class="skills-list">
+                ${skillsHtml}
+            </div>
+        ` : ''}
     `}
     
     <script>
