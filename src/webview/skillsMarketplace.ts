@@ -76,7 +76,6 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                 const repos = await this._githubService.discoverSkillRepos();
 
                 // Concurrent verification with batch processing
-                const validSkills: CommunitySkill[] = [];
                 const batchSize = 20; // Process 20 repos at a time
                 const total = repos.length;
 
@@ -110,15 +109,17 @@ export class SkillsMarketplace implements vscode.WebviewViewProvider {
                         })
                     );
 
-                    // Collect valid results
+                    // Collect valid results and update view progressively
                     for (const result of results) {
                         if (result.status === 'fulfilled' && result.value) {
-                            validSkills.push(result.value);
+                            this._skills.push(result.value);
                         }
                     }
+
+                    // Progressive update: show skills as they're discovered
+                    this._updateView();
                 }
 
-                this._skills = validSkills;
                 this._error = null;
             });
         } catch (err) {

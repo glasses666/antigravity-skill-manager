@@ -91,7 +91,6 @@ class SkillsMarketplace {
                 progress.report({ message: 'Fetching repositories...' });
                 const repos = await this._githubService.discoverSkillRepos();
                 // Concurrent verification with batch processing
-                const validSkills = [];
                 const batchSize = 20; // Process 20 repos at a time
                 const total = repos.length;
                 for (let i = 0; i < repos.length; i += batchSize) {
@@ -120,14 +119,15 @@ class SkillsMarketplace {
                         }
                         return null;
                     }));
-                    // Collect valid results
+                    // Collect valid results and update view progressively
                     for (const result of results) {
                         if (result.status === 'fulfilled' && result.value) {
-                            validSkills.push(result.value);
+                            this._skills.push(result.value);
                         }
                     }
+                    // Progressive update: show skills as they're discovered
+                    this._updateView();
                 }
-                this._skills = validSkills;
                 this._error = null;
             });
         }
